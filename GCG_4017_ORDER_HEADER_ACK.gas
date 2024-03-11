@@ -1,0 +1,111 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.UDT.Recalc.Define("EMPID",String,EMPLOYEE_ID)
+Variable.UDT.Recalc.Define("CheckDate",String,CHECK_DATE)
+Variable.UDT.Recalc.Define("CalcdMatchAmount",Float,CALCD_MATCH_AMOUNT)
+Variable.UDT.Recalc.Define("CompanyContribution",Float,COMPANY_CONTRIBUTION)
+Variable.uGlobal.uRecalc.Declare("Recalc")
+Variable.Global.sQuery.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'TSP 2/14/15
+'This program checks the Acknowledged state of a sales order.
+
+
+V.Local.sError.Declare
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	F.Intrinsic.Control.Case(11560)
+		'Populate
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-1,"HIDE",0)
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-1,"LOCK",0)
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-CHK-1,"HIDE",0)
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-CHK-1,"LOCK",0)
+		V.Passed.GAB-LBL-1.Set("Acknowledged")
+		F.Intrinsic.Variable.SetProperty("000154","PW",75)
+		F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PL",475)
+		F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PT",89)
+		F.Intrinsic.Variable.SetProperty("GAB-CHK-1","PL",450)
+		F.Intrinsic.Variable.SetProperty("GAB-CHK-1","PT",89)
+
+		F.Intrinsic.String.Concat("SELECT ACKNOWLEDGED FROM GCG_4017_SO_ACK WHERE ORDER_NO = '",V.Passed.000003,"'",V.Global.sQuery)
+		F.ODBC.Connection!Conx.OpenRecordsetRO("rstAck",V.Global.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conx!rstAck.EOF,<>,True)
+			V.Passed.GAB-CHK-1.Set("Y")
+		F.Intrinsic.Control.EndIF
+		F.ODBC.conx!rstAck.Close
+		
+	F.Intrinsic.Control.Case(11870)
+		'Save
+		F.Intrinsic.String.Concat("SELECT * FROM GCG_4017_SO_ACK WHERE ORDER_NO = '",V.Passed.000003,"'",V.Global.sQuery)
+		F.ODBC.Connection!Conx.OpenRecordsetRW("rstAck",V.Global.sQuery)
+		
+		F.Intrinsic.Control.If(V.ODBC.conx!rstAck.EOF,<>,True)
+			F.ODBC.Conx!rstAck.Set!ACKNOWLEDGED(V.PASSED.GAB-CHK-1)
+			F.ODBC.Conx!rstAck.Set!DATETIME(V.Ambient.Now)
+			F.ODBC.conx!rstAck.Update
+		F.Intrinsic.Control.Else
+			F.ODBC.Conx!rstAck.AddNew
+			F.ODBC.Conx!rstAck.Set!ORDER_NO(V.Passed.000003)
+			F.ODBC.Conx!rstAck.Set!ACKNOWLEDGED(V.PASSED.GAB-CHK-1)
+			F.ODBC.Conx!rstAck.Set!DATETIME(V.Ambient.Now)
+			F.ODBC.conx!rstAck.Update
+		F.Intrinsic.Control.EndIf
+
+		F.ODBC.conx!rstAck.Close
+		V.Passed.GAB-CHK-1.Set("N")
+
+
+	F.Intrinsic.Control.Case(11880)
+		'Delete
+		F.Intrinsic.String.Concat("SELECT * FROM GCG_4017_SO_ACK WHERE ORDER_NO = '",V.Passed.000003,"'",V.Global.sQuery)
+		F.ODBC.Connection!Conx.OpenRecordsetRW("rstAck",V.Global.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conx!rstAck.EOF,<>,True)
+			F.Intrinsic.String.Concat("DELETE from GCG_4017_SO_ACK  WHERE ORDER_NO = '",V.Passed.000003,"'",V.Global.sQuery)
+			F.ODBC.Connection!conX.Execute(V.Global.sQuery)
+		F.Intrinsic.Control.EndIf
+		F.ODBC.conx!rstAck.Close
+		V.Passed.GAB-CHK-1.Set("N")
+
+	F.Intrinsic.Control.Case(11931)
+		'Order number change
+		F.Intrinsic.String.Concat("SELECT ACKNOWLEDGED FROM GCG_4017_SO_ACK WHERE ORDER_NO = '",V.Passed.000003,"'",V.Global.sQuery)
+		F.ODBC.Connection!Conx.OpenRecordsetRO("rstAck",V.Global.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conx!rstAck.EOF,<>,True)
+			V.Passed.GAB-CHK-1.Set("Y")
+		F.Intrinsic.Control.EndIF
+		F.ODBC.conx!rstAck.Close
+
+	F.Intrinsic.Control.Case(11565)
+		'Order Selected Hook
+		F.Intrinsic.String.Concat("SELECT ACKNOWLEDGED FROM GCG_4017_SO_ACK WHERE ORDER_NO = '",V.Passed.000003,"'",V.Global.sQuery)
+		F.ODBC.Connection!Conx.OpenRecordsetRO("rstAck",V.Global.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conx!rstAck.EOF,<>,True)
+			V.Passed.GAB-CHK-1.Set("Y")
+		F.Intrinsic.Control.EndIF
+		F.ODBC.conx!rstAck.Close
+
+
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4017_ORDER_HEADER_ACK.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$TSP$}$12/10/2014 9:08:08 AM
+Program.Sub.Comments.End
+
